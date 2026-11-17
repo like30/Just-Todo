@@ -27,6 +27,10 @@ const todos = ref([]);
 const currentCategoryId = ref('default');
 const defaultCategoryId = ref('default');
 const viewMode = ref('list'); // 'list' or 'calendar'
+const searchQuery = ref('');
+const activeTag = ref(''); // 当前按此标签筛选
+const multiSelectMode = ref(false);
+const multiSelectedIds = ref(new Set());
 const contextMenu = ref({ visible: false, x: 0, y: 0, type: '', item: null });
 const datePickerModal = ref({
   visible: false,
@@ -347,6 +351,33 @@ const setSort = (field) => {
   sortMenuVisible.value = false;
 };
 
+const allTags = computed(() => {
+  const tagSet = new Set();
+  todos.value.forEach(t => {
+    if (Array.isArray(t.tags)) {
+      t.tags.forEach(tag => tagSet.add(tag));
+    }
+  });
+  return Array.from(tagSet).sort();
+});
+
+const filteredByTagAndSearch = (list) => {
+  let result = list;
+  if (activeTag.value) {
+    result = result.filter(t => Array.isArray(t.tags) && t.tags.includes(activeTag.value));
+  }
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.toLowerCase().trim();
+    result = result.filter(t => {
+      const content = (t.content || '').toLowerCase();
+      const desc = (t.description || '').toLowerCase();
+      const tags = Array.isArray(t.tags) ? t.tags.map(tag => tag.toLowerCase()) : [];
+      return content.includes(q) || desc.includes(q) || tags.some(tag => tag.includes(q));
+    });
+  }
+  return result;
+};
+
 // Computed
 const currentTodos = computed(() => {
   let filtered = [];
@@ -367,7 +398,10 @@ const currentTodos = computed(() => {
     filtered = todos.value.filter(t => t.categoryId === currentCategoryId.value);
   }
 
-  // 2. Sort Logic (If custom sort is active, override default sorts)
+  // 2. Tag + Search filter
+  filtered = filteredByTagAndSearch(filtered);
+
+  // 3. Sort Logic (If custom sort is active, override default sorts)
   if (sortState.value.field !== 'default') {
     const { field, order } = sortState.value;
     const factor = order === 'asc' ? 1 : -1;
@@ -423,6 +457,10 @@ const currentCategoryName = computed(() => {
   const cat = categories.value.find(c => c.id === currentCategoryId.value);
   return cat ? cat.name : '未知清单';
 });
+
+const setActiveTag = (tag) => {
+  activeTag.value = tag;
+};
 
 // Lifecycle
 const showDatePicker = (defaultDate, callback) => {
@@ -547,6 +585,8 @@ const saveTodos = (opts = {}) => {
 // Category Actions
 const selectCategory = (id) => {
   currentCategoryId.value = id;
+  activeTag.value = '';
+  searchQuery.value = '';
   // viewMode.value = 'list'; // Optional: Switch back to list view on category change
 };
 
@@ -631,7 +671,10 @@ const addTodo = (todoData) => {
     repeatWeekDays: Array.isArray(todoData.repeatWeekDays) ? [...todoData.repeatWeekDays] : [],
     repeatMonthDays: Array.isArray(todoData.repeatMonthDays) ? [...todoData.repeatMonthDays] : [],
     subtasks: todoData.subtasks || [],
-    attachments: todoData.attachments || []
+    attachments: todoData.attachments || [],
+    tags: [...new Set((Array.isArray(todoData.tags) ? todoData.tags : [])
+      .map(tag => (tag || '').toString().trim())
+      .filter(Boolean))]
   };
   todos.value.unshift(newTodo);
   saveTodos();
@@ -689,6 +732,10 @@ const updateTodo = (updatedTodo) => {
         mimeType: (a?.mimeType || '').toString()
       })));
     };
+    const normalizeTags = (arr) => {
+      const list = Array.isArray(arr) ? arr : [];
+      return [...new Set(list.map(tag => (tag || '').toString().trim()).filter(Boolean))].sort().join('|');
+    };
     
     // Update completedAt timestamp
     if (completionTransition) {
@@ -717,7 +764,10 @@ const updateTodo = (updatedTodo) => {
     const merged = {
       ...oldTodo,
       ...updatedTodo,
-      attachments: updatedTodo.attachments !== undefined ? updatedTodo.attachments : (oldTodo.attachments || [])
+      attachments: updatedTodo.attachments !== undefined ? updatedTodo.attachments : (oldTodo.attachments || []),
+      tags: [...new Set((Array.isArray(updatedTodo.tags) ? updatedTodo.tags : (Array.isArray(oldTodo.tags) ? oldTodo.tags : []))
+        .map(tag => (tag || '').toString().trim())
+        .filter(Boolean))]
     };
     if ('reminderAdvanceMinutes' in merged) delete merged.reminderAdvanceMinutes;
     merged.repeatRule = normalizeRepeatRule(merged.repeatRule);
@@ -735,7 +785,8 @@ const updateTodo = (updatedTodo) => {
       normalizeNumberList(oldTodo.repeatWeekDays),
       normalizeNumberList(oldTodo.repeatMonthDays),
       normalizeSubtasks(oldTodo.subtasks),
-      normalizeAttachments(oldTodo.attachments)
+      normalizeAttachments(oldTodo.attachments),
+      normalizeTags(oldTodo.tags)
     ].join('||');
 
     const newKey = [
@@ -751,7 +802,8 @@ const updateTodo = (updatedTodo) => {
       normalizeNumberList(merged.repeatWeekDays),
       normalizeNumberList(merged.repeatMonthDays),
       normalizeSubtasks(merged.subtasks),
-      normalizeAttachments(merged.attachments)
+      normalizeAttachments(merged.attachments),
+      normalizeTags(merged.tags)
     ].join('||');
 
     const changed = oldKey !== newKey;
@@ -1612,9 +1664,71 @@ const handleMenuAction = (action, payload) => {
          todo.priority = priority;
          saveTodos();
        }
+    } else if (action === 'manage-tags') {
+      // 打开 TaskModal 编辑标签
+      openTaskModal({ id: item.id });
     }
   }
   closeContextMenu();
+};
+
+// 多选模式逻辑
+const toggleMultiSelect = (id) => {
+  const newSet = new Set(multiSelectedIds.value);
+  if (newSet.has(id)) {
+    newSet.delete(id);
+  } else {
+    newSet.add(id);
+  }
+  multiSelectedIds.value = newSet;
+};
+
+const exitMultiSelect = () => {
+  multiSelectMode.value = false;
+  multiSelectedIds.value = new Set();
+};
+
+const batchAddTags = () => {
+  if (multiSelectedIds.value.size === 0) {
+    showToast('请先选择待办', 'error');
+    return;
+  }
+  showInputModal('批量添加标签', '', (tag) => {
+    if (!tag) return;
+    const t = tag.trim();
+    if (!t) return;
+    todos.value.forEach(todo => {
+      if (multiSelectedIds.value.has(todo.id)) {
+        if (!Array.isArray(todo.tags)) todo.tags = [];
+        if (!todo.tags.includes(t)) {
+          todo.tags.push(t);
+        }
+      }
+    });
+    saveTodos();
+    showToast(`已为 ${multiSelectedIds.value.size} 项添加标签「${t}」`);
+  });
+};
+
+const batchRemoveTags = () => {
+  if (multiSelectedIds.value.size === 0) {
+    showToast('请先选择待办', 'error');
+    return;
+  }
+  showInputModal('批量删除标签', '', (tag) => {
+    if (!tag) return;
+    const t = tag.trim();
+    if (!t) return;
+    todos.value.forEach(todo => {
+      if (multiSelectedIds.value.has(todo.id)) {
+        if (Array.isArray(todo.tags)) {
+          todo.tags = todo.tags.filter(existing => existing !== t);
+        }
+      }
+    });
+    saveTodos();
+    showToast(`已为 ${multiSelectedIds.value.size} 项删除标签「${t}」`);
+  });
 };
 
 const isUtools = typeof window !== 'undefined' && !!window.utools;
@@ -2234,12 +2348,17 @@ const showExportContextMenu = (event) => {
       :currentCategoryId="currentCategoryId"
       :todos="todos"
       :themeMode="themeMode"
+      :allTags="allTags"
+      :activeTag="activeTag"
+      :searchQuery="searchQuery"
       @select="selectCategory"
       @update:categories="updateCategories"
       @add-category="addCategory"
       @context-menu="showContextMenu"
       @theme-change="setThemeMode"
       @open-settings="settingsVisible = true"
+      @set-active-tag="setActiveTag"
+      @update:searchQuery="searchQuery = $event"
     />
     
     <main class="main-content">
@@ -2316,17 +2435,30 @@ const showExportContextMenu = (event) => {
       </header>
 
       <div class="content-body">
+        <div v-if="multiSelectMode" class="multi-select-bar">
+          <span>已选 {{ multiSelectedIds.size }} 项</span>
+          <div class="multi-select-actions">
+            <button class="multi-btn" @click="batchAddTags">批量添加标签</button>
+            <button class="multi-btn" @click="batchRemoveTags">批量删除标签</button>
+            <button class="multi-btn cancel" @click="exitMultiSelect">退出多选</button>
+          </div>
+        </div>
         <div v-if="viewMode === 'list'" class="list-view">
            <TodoList 
              :todos="currentTodos" 
              :categoryId="currentCategoryId"
              :categories="categories"
              :sortState="sortState"
+             :multiSelectMode="multiSelectMode"
+             :multiSelectedIds="multiSelectedIds"
              @update:todos="handleTodosUpdate"
              @open-add-task="openTaskModal"
              @update-todo="updateTodo"
              @context-menu="showContextMenu"
              @item-click="openTaskDrawer"
+             @toggle-multi-select="toggleMultiSelect"
+             @batch-add-tags="batchAddTags"
+             @batch-remove-tags="batchRemoveTags"
            />
         </div>
         <CalendarView 
@@ -2398,6 +2530,7 @@ const showExportContextMenu = (event) => {
              <div class="menu-item" @click="handleMenuAction('repeat', 'yearly')">{{ getRepeatLabel('yearly', contextMenu.item) }}</div>
           </div>
         </div>
+        <div class="menu-item" @click="handleMenuAction('manage-tags')">管理标签</div>
         <div class="menu-item delete" @click="handleMenuAction('delete')">删除任务</div>
       </template>
 
@@ -2429,6 +2562,7 @@ const showExportContextMenu = (event) => {
       :initial-data="taskDrawer.initialData"
       :default-category-id="currentCategoryId"
       :enabled-notify-channels="enabledNotifyChannels"
+      :all-tags="allTags"
       @save="handleDrawerSave"
       @toast="handleTaskToast"
       @open-settings="settingsVisible = true"
@@ -2567,6 +2701,7 @@ const showExportContextMenu = (event) => {
       :initial-data="taskModal.initialData"
       :default-category-id="currentCategoryId"
       :enabled-notify-channels="enabledNotifyChannels"
+      :all-tags="allTags"
       @save="handleTaskSave"
       @toast="handleTaskToast"
       @open-settings="settingsVisible = true"

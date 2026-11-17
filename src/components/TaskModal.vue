@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
 import DateTimePicker from './DateTimePicker.vue';
 import ToggleSwitch from './ToggleSwitch.vue';
+import TagInput from './TagInput.vue';
 
 const vAutoResize = {
   mounted: (el) => {
@@ -35,6 +36,10 @@ const props = defineProps({
   enabledNotifyChannels: {
     type: Array,
     default: null
+  },
+  allTags: {
+    type: Array,
+    default: () => []
   }
 });
 
@@ -193,7 +198,8 @@ const form = ref({
   repeatWeekDays: [],
   repeatMonthDays: [],
   subtasks: [],
-  attachments: []
+  attachments: [],
+  tags: []
 });
 
 const newSubtaskContent = ref('');
@@ -496,7 +502,8 @@ watch(() => props.visible, (val) => {
         repeatWeekDays: Array.isArray(props.initialData.repeatWeekDays) ? [...props.initialData.repeatWeekDays] : [],
         repeatMonthDays: Array.isArray(props.initialData.repeatMonthDays) ? [...props.initialData.repeatMonthDays] : [],
         subtasks: props.initialData.subtasks ? JSON.parse(JSON.stringify(props.initialData.subtasks)) : [],
-        attachments: props.initialData.attachments ? JSON.parse(JSON.stringify(props.initialData.attachments)) : []
+        attachments: props.initialData.attachments ? JSON.parse(JSON.stringify(props.initialData.attachments)) : [],
+        tags: Array.isArray(props.initialData.tags) ? [...props.initialData.tags] : []
       };
     } else {
       // New Task
@@ -514,7 +521,8 @@ watch(() => props.visible, (val) => {
         repeatWeekDays: Array.isArray(seed.repeatWeekDays) ? [...seed.repeatWeekDays] : [],
         repeatMonthDays: Array.isArray(seed.repeatMonthDays) ? [...seed.repeatMonthDays] : [],
         subtasks: seed.subtasks ? JSON.parse(JSON.stringify(seed.subtasks)) : [],
-        attachments: seed.attachments ? JSON.parse(JSON.stringify(seed.attachments)) : []
+        attachments: seed.attachments ? JSON.parse(JSON.stringify(seed.attachments)) : [],
+        tags: Array.isArray(seed.tags) ? [...seed.tags] : []
       };
     }
   }
@@ -816,7 +824,10 @@ const onSave = () => {
   emit('save', {
     ...form.value,
     subtasks: cleanedSubtasks,
-    priority: form.value.priority
+    priority: form.value.priority,
+    tags: [...new Set((Array.isArray(form.value.tags) ? form.value.tags : [])
+      .map(tag => (tag || '').toString().trim())
+      .filter(Boolean))]
   });
   emit('update:visible', false);
 };
@@ -976,6 +987,13 @@ const onClose = () => {
                 </div>
               </div>
             </transition>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-col" style="grid-column: 1 / -1;">
+            <label>标签</label>
+            <TagInput v-model="form.tags" :allTags="allTags" />
           </div>
         </div>
 

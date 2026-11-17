@@ -24,6 +24,14 @@ const props = defineProps({
   stickyMode: {
     type: Boolean,
     default: false
+  },
+  multiSelectMode: {
+    type: Boolean,
+    default: false
+  },
+  multiSelectedIds: {
+    type: Object,
+    default: () => new Set()
   }
 });
 
@@ -33,8 +41,24 @@ const emit = defineEmits([
   'open-add-task',
   'update-todo',
   'context-menu',
-  'item-click'
+  'item-click',
+  'toggle-multi-select',
+  'batch-add-tags',
+  'batch-remove-tags'
 ]);
+
+const TAG_COLORS = [
+  '#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1',
+  '#13c2c2', '#eb2f96', '#fa541c', '#a0d911', '#2f54eb'
+];
+
+const getTagColor = (tag) => {
+  let hash = 0;
+  for (let i = 0; i < tag.length; i++) {
+    hash = tag.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return TAG_COLORS[Math.abs(hash) % TAG_COLORS.length];
+};
 
 // Attachment Logic
 const hoveredAttachmentId = ref(null);
@@ -784,7 +808,8 @@ const leaveCancelled = (el) => {
                 <div class="todo-item" :class="{
                   completed: element.isCompleted,
                   'is-hovering': hoveredKey === `${group.id}:${element.id}`,
-                  'has-drag-handle': true
+                  'has-drag-handle': true,
+                  'multi-selected': props.multiSelectMode && props.multiSelectedIds.has(element.id)
                 }" @contextmenu="onContextMenu($event, element)" @mouseleave="hideHoverPanel">
                   <div class="todo-main-row">
                     <span class="drag-handle">⋮⋮</span>
@@ -794,7 +819,7 @@ const leaveCancelled = (el) => {
                         <i v-if="element.isCompleted" class="ri-check-line" style="color: white; font-size: 14px;"></i>
                       </div>
                     </div>
-                    <div class="todo-content" @click="emit('item-click', element)">
+                    <div class="todo-content" @click="props.multiSelectMode ? emit('toggle-multi-select', element.id) : emit('item-click', element)">
                       <div class="content-main">
                         <span class="text">{{ element.content }}</span>
                         <span v-if="element.priority && element.priority !== 'normal'" class="priority-badge"
@@ -803,7 +828,15 @@ const leaveCancelled = (el) => {
                         </span>
                       </div>
                       <div class="meta"
-                        v-if="element.dueDate || (element.reminderEnabled !== false && element.remindAt) || element.repeatRule || element.description || (element.subtasks && element.subtasks.length > 0) || (element.attachments && element.attachments.length > 0)">
+                        v-if="element.dueDate || (element.reminderEnabled !== false && element.remindAt) || element.repeatRule || element.description || (element.subtasks && element.subtasks.length > 0) || (element.attachments && element.attachments.length > 0) || (element.tags && element.tags.length > 0)">
+                        <span v-if="element.tags && element.tags.length > 0" class="meta-tag tags-tag" title="标签">
+                          <i class="ri-price-tag-3-line"></i>
+                          <span v-for="tag in element.tags.slice(0, 3)" :key="tag" class="inline-tag"
+                            :style="{ backgroundColor: getTagColor(tag) + '20', color: getTagColor(tag) }">
+                            {{ tag }}
+                          </span>
+                          <span v-if="element.tags.length > 3" class="inline-tag more">+{{ element.tags.length - 3 }}</span>
+                        </span>
                         <span v-if="element.description" class="meta-tag has-desc" @mouseenter="showDescription(group.id, element.id)">
                           <i class="ri-sticky-note-line"></i>
                         </span>
@@ -872,7 +905,8 @@ const leaveCancelled = (el) => {
               <div v-for="element in group.items" :key="element.id" class="todo-item" :class="{
                 completed: element.isCompleted,
                 'is-hovering': hoveredKey === `${group.id}:${element.id}`,
-                'has-drag-handle': (!isCustomSort && group.id === 'active' && !['all', 'today', 'plan', 'urgent', 'completed'].includes(categoryId))
+                'has-drag-handle': (!isCustomSort && group.id === 'active' && !['all', 'today', 'plan', 'urgent', 'completed'].includes(categoryId)),
+                'multi-selected': props.multiSelectMode && props.multiSelectedIds.has(element.id)
               }" @contextmenu="onContextMenu($event, element)" @mouseleave="hideHoverPanel">
                 <div class="todo-main-row">
                   <span class="drag-handle"
@@ -883,7 +917,7 @@ const leaveCancelled = (el) => {
                       <i v-if="element.isCompleted" class="ri-check-line" style="color: white; font-size: 14px;"></i>
                     </div>
                   </div>
-                  <div class="todo-content" @click="emit('item-click', element)">
+                  <div class="todo-content" @click="props.multiSelectMode ? emit('toggle-multi-select', element.id) : emit('item-click', element)">
                     <div class="content-main">
                       <span class="text">{{ element.content }}</span>
                       <span v-if="element.priority && element.priority !== 'normal'" class="priority-badge"
@@ -892,7 +926,15 @@ const leaveCancelled = (el) => {
                       </span>
                     </div>
                     <div class="meta"
-                      v-if="element.dueDate || (element.reminderEnabled !== false && element.remindAt) || element.repeatRule || element.description || (element.subtasks && element.subtasks.length > 0) || (element.attachments && element.attachments.length > 0)">
+                      v-if="element.dueDate || (element.reminderEnabled !== false && element.remindAt) || element.repeatRule || element.description || (element.subtasks && element.subtasks.length > 0) || (element.attachments && element.attachments.length > 0) || (element.tags && element.tags.length > 0)">
+                      <span v-if="element.tags && element.tags.length > 0" class="meta-tag tags-tag" title="标签">
+                        <i class="ri-price-tag-3-line"></i>
+                        <span v-for="tag in element.tags.slice(0, 3)" :key="tag" class="inline-tag"
+                          :style="{ backgroundColor: getTagColor(tag) + '20', color: getTagColor(tag) }">
+                          {{ tag }}
+                        </span>
+                        <span v-if="element.tags.length > 3" class="inline-tag more">+{{ element.tags.length - 3 }}</span>
+                      </span>
                       <span v-if="element.description" class="meta-tag has-desc" @mouseenter="showDescription(group.id, element.id)">
                         <i class="ri-sticky-note-line"></i>
                       </span>
@@ -1256,6 +1298,11 @@ const leaveCancelled = (el) => {
       }
     }
   }
+
+  &.multi-selected {
+    background: var(--primary-color-light, #e6f7ff);
+    border-color: var(--primary-color, #1890ff);
+  }
 }
 
 .todo-main-row {
@@ -1411,6 +1458,26 @@ const leaveCancelled = (el) => {
         border-color: transparent;
         background: transparent;
         padding-left: 0;
+      }
+
+      &.tags-tag {
+        padding: 2px 6px;
+        gap: 3px;
+
+        .inline-tag {
+          display: inline-flex;
+          align-items: center;
+          padding: 1px 5px;
+          border-radius: 3px;
+          font-size: 10px;
+          font-weight: 500;
+          line-height: 1.4;
+
+          &.more {
+            background: var(--bg-color);
+            color: var(--secondary-text);
+          }
+        }
       }
     }
   }

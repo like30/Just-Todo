@@ -19,10 +19,22 @@ const props = defineProps({
   themeMode: {
     type: String,
     default: 'system'
+  },
+  allTags: {
+    type: Array,
+    default: () => []
+  },
+  activeTag: {
+    type: String,
+    default: ''
+  },
+  searchQuery: {
+    type: String,
+    default: ''
   }
 });
 
-const emit = defineEmits(['select', 'update:categories', 'add-category', 'context-menu', 'theme-change', 'open-settings']);
+const emit = defineEmits(['select', 'update:categories', 'add-category', 'context-menu', 'theme-change', 'open-settings', 'set-active-tag', 'update:searchQuery']);
 
 const dragging = ref(false);
 
@@ -64,6 +76,18 @@ const getSmartCount = (type) => {
 
 const handleDragEnd = () => {
   dragging.value = false;
+};
+
+const setActiveTag = (tag) => {
+  emit('set-active-tag', tag);
+};
+
+const updateSearch = (e) => {
+  emit('update:searchQuery', e.target.value);
+};
+
+const getTagCount = (tag) => {
+  return props.todos.filter(t => Array.isArray(t.tags) && t.tags.includes(tag) && !t.isCompleted).length;
 };
 
 const themeIndex = computed(() => props.themeMode === 'light' ? 0 : props.themeMode === 'dark' ? 1 : 2);
@@ -195,6 +219,44 @@ onUnmounted(() => {
       </draggable>
     </div>
 
+    <div v-if="allTags.length > 0" class="tags-section">
+      <div class="tags-header">
+        <i class="ri-price-tag-3-line"></i>
+        <span>标签</span>
+      </div>
+      <div class="tags-cloud">
+        <span
+          v-for="tag in allTags"
+          :key="tag"
+          class="tag-chip"
+          :class="{ active: activeTag === tag }"
+          @click="setActiveTag(activeTag === tag ? '' : tag)"
+        >
+          {{ tag }}
+          <span v-if="getTagCount(tag)" class="tag-count">{{ getTagCount(tag) }}</span>
+        </span>
+      </div>
+      <div v-if="activeTag" class="active-tag-bar">
+        <span>筛选: {{ activeTag }}</span>
+        <button class="clear-tag-btn" @click="setActiveTag('')">
+          <i class="ri-close-line"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="search-box">
+        <i class="ri-search-line search-icon"></i>
+        <input
+          type="text"
+          class="search-input"
+          placeholder="搜索待办 / 标签..."
+          :value="searchQuery"
+          @input="updateSearch"
+        />
+        <i v-if="searchQuery" class="ri-close-circle-fill search-clear" @click="emit('update:searchQuery', '')"></i>
+      </div>
+    </div>
     <div class="sidebar-footer">
       <button class="settings-btn" title="设置" @click="openSettings">
         <i class="ri-settings-3-line"></i>
@@ -429,6 +491,137 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     gap: 10px;
+  }
+
+  .search-box {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    transition: all 0.2s;
+
+    &:focus-within {
+      border-color: var(--primary-color);
+      background: var(--bg-color);
+    }
+
+    .search-icon {
+      font-size: 14px;
+      color: var(--secondary-text);
+      flex-shrink: 0;
+    }
+
+    .search-input {
+      flex: 1;
+      border: none;
+      outline: none;
+      background: transparent;
+      font-size: 13px;
+      color: var(--text-color);
+      padding: 0;
+
+      &::placeholder {
+        color: var(--secondary-text);
+        opacity: 0.6;
+      }
+    }
+
+    .search-clear {
+      font-size: 14px;
+      color: var(--secondary-text);
+      cursor: pointer;
+      flex-shrink: 0;
+
+      &:hover {
+        color: var(--text-color);
+      }
+    }
+  }
+
+  .tags-section {
+    padding: 10px;
+    border-top: 1px solid var(--border-color);
+
+    .tags-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--secondary-text);
+      margin-bottom: 8px;
+    }
+
+    .tags-cloud {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .tag-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      background: var(--bg-secondary);
+      color: var(--secondary-text);
+      border: 1px solid var(--border-color);
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &:hover {
+        background: var(--hover-bg);
+        color: var(--text-color);
+      }
+
+      &.active {
+        background: var(--primary-color);
+        color: #fff;
+        border-color: var(--primary-color);
+      }
+
+      .tag-count {
+        font-size: 10px;
+        opacity: 0.7;
+      }
+    }
+
+    .active-tag-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 8px;
+      padding: 4px 8px;
+      background: var(--primary-color-light, #e6f7ff);
+      border-radius: 4px;
+      font-size: 12px;
+      color: var(--primary-color);
+
+      .clear-tag-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        border: none;
+        background: none;
+        cursor: pointer;
+        color: var(--primary-color);
+        padding: 0;
+        opacity: 0.7;
+
+        &:hover {
+          opacity: 1;
+        }
+      }
+    }
   }
 
   .settings-btn {

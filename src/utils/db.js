@@ -123,12 +123,25 @@ export const db = {
       doc = { _id: 'todos', data: [] };
       putDoc(doc);
     }
-    return doc.data || [];
+    // 确保旧数据自动补全 tags 字段
+    const todos = doc.data || [];
+    todos.forEach(t => {
+      if (!Array.isArray(t.tags)) {
+        t.tags = [];
+      }
+    });
+    return todos;
   },
 
   saveTodos(todos) {
     const doc = getDoc('todos') || { _id: 'todos' };
-    doc.data = todos;
+    // 写入前统一去重、trim、过滤空串
+    doc.data = todos.map(t => ({
+      ...t,
+      tags: [...new Set((Array.isArray(t.tags) ? t.tags : [])
+        .map(tag => (tag || '').toString().trim())
+        .filter(Boolean))]
+    }));
     return putDoc(doc);
   },
 
