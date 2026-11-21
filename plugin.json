@@ -1,4 +1,8 @@
 {
+  "name": "zyat75sw",
+  "pluginName": "Just Todo待办",
+  "version": "1.2.0",
+  "platform": ["win32"],
   "main": "index.html",
   "preload": "public/preload/services.js",
   "logo": "public/logo.png",

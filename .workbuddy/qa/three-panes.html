@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Just Todo 三栏真实渲染回归</title>
+  <style>
+    html { font: 17px/1.6 "Microsoft YaHei", sans-serif; color: #243247; background: #f1f5f9; }
+    body { margin: 0; padding: 20px; }
+    h1 { margin: 0 0 8px; font-size: 25px; }
+    p { margin: 4px 0 12px; }
+    button { font: inherit; padding: 8px 14px; border: 1px solid #b4c3d5; border-radius: 7px; color: #1e40af; background: #fff; cursor: pointer; }
+    .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+    #summary { font-weight: 700; }
+    .stage { border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; overflow: auto; margin: 12px 0; }
+    iframe { display: block; border: 0; height: 640px; width: 1080px; }
+    details { padding: 14px 18px; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; }
+    ol { margin: 10px 0 0; padding-left: 25px; }
+    li { padding: 3px 0; }
+    .pass { color: #243247; }
+    .fail { color: #b42318; font-weight: 600; }
+    #metrics { overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <h1>Just Todo 三栏版 · 真实渲染回归</h1>
+  <p>下方挂载实际 Vue 源码，数据只存于演示页内存，不连接现有 uTools 插件或个人数据库。</p>
+  <div class="toolbar"><button id="run" type="button">重新运行回归</button><a href="./app.html" target="_blank">打开三栏演示</a><span id="summary" role="status">正在载入实际组件…</span></div>
+  <p id="metrics"></p>
+  <textarea id="report-json" aria-label="回归测试结果" readonly rows="3" style="box-sizing:border-box;width:100%;font:17px/1.5 monospace;color:#243247;background:#fff;border:1px solid #cbd5e1;">正在运行测试</textarea>
+  <div class="stage"><iframe id="preview" src="./app.html" title="实际三栏界面（隔离测试数据）"></iframe></div>
+  <details open><summary>逐项验证结果</summary><ol id="results"></ol></details>
+  <script type="module" src="./three-panes.mjs"></script>
+</body>
+</html>

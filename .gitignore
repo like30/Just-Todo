@@ -30,3 +30,16 @@ dist-ssr
 
 # IDE-generated wiki
 .qoder/
+
+# 本机备份、构建和个人交接记录不进入源码仓库
+.workbuddy/backups/
+.workbuddy/artifacts/
+.workbuddy/build-three-panes*/
+.workbuddy/memory/
+/Just-Todo-*.asar
+/Just-Todo-*.upx
+/452520-original.asar.bak
+/HANDOFF.md
+/final_solve.js
+/eval_in_utools.js
+/main.js

@@ -605,7 +605,9 @@ const addCategory = () => {
   });
 };
 
-const updateCategories = () => {
+const updateCategories = (updatedCategories) => {
+  // v-model 拖拽会产生新数组，必须先接回完整清单再保存。
+  if (Array.isArray(updatedCategories)) categories.value = updatedCategories;
   saveCategories();
 };
 
@@ -1665,14 +1667,20 @@ const handleMenuAction = (action, payload) => {
          saveTodos();
        }
     } else if (action === 'manage-tags') {
-      // 打开 TaskModal 编辑标签
-      openTaskModal({ id: item.id });
+      // 标签编辑必须携带完整任务，避免空表单覆盖正文、附件和既有标签。
+      const todo = todos.value.find(t => t.id === item.id);
+      if (todo) openTaskModal(JSON.parse(JSON.stringify(todo)));
     }
   }
   closeContextMenu();
 };
 
 // 多选模式逻辑
+const enterMultiSelect = () => {
+  multiSelectedIds.value = new Set();
+  multiSelectMode.value = true;
+};
+
 const toggleMultiSelect = (id) => {
   const newSet = new Set(multiSelectedIds.value);
   if (newSet.has(id)) {
@@ -2364,7 +2372,7 @@ const showExportContextMenu = (event) => {
     <main class="main-content">
       <header class="main-header">
         <div class="header-left">
-          <h2>{{ currentCategoryName }}</h2>
+          <h2 :title="currentCategoryName">{{ currentCategoryName }}</h2>
         </div>
         <div class="header-right">
           <!-- Pin Button -->
@@ -2428,6 +2436,17 @@ const showExportContextMenu = (event) => {
             </div>
           </div>
           
+          <button
+            v-if="viewMode === 'list'"
+            class="multi-select-toggle"
+            :class="{ active: multiSelectMode }"
+            :aria-pressed="multiSelectMode"
+            @click="multiSelectMode ? exitMultiSelect() : enterMultiSelect()"
+          >
+            <i class="ri-checkbox-multiple-line"></i>
+            {{ multiSelectMode ? '完成' : '多选' }}
+          </button>
+
           <button class="add-btn" @click="openTaskModal({ categoryId: currentCategoryId === 'all' || currentCategoryId === 'today' || currentCategoryId === 'plan' || currentCategoryId === 'urgent' || currentCategoryId === 'completed' ? defaultCategoryId : currentCategoryId })">
             <i class="ri-add-line"></i> 新建任务
           </button>
@@ -2751,6 +2770,9 @@ const showExportContextMenu = (event) => {
 .app-container {
   height: 100vh;
   display: flex;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   color: var(--text-color);
   background: var(--bg-color);
 }
@@ -2886,6 +2908,8 @@ const showExportContextMenu = (event) => {
 
 .main-content {
   flex: 1;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -2893,34 +2917,61 @@ const showExportContextMenu = (event) => {
   
   .list-view {
     display: flex;
+    flex: 1;
+    min-height: 0;
     flex-direction: column;
-    height: 100%;
   }
 
   .main-header {
     display: flex;
+    flex-wrap: wrap;
+    flex-shrink: 0;
     justify-content: space-between;
     align-items: center;
-    padding: 15px 24px;
+    gap: 12px;
+    padding: 15px 20px;
     background: var(--bg-color);
 
     .header-left {
+      flex: 1 1 160px;
+      min-width: 0;
+      max-width: 100%;
       h2 {
         margin: 0;
         font-size: 24px;
         font-weight: 700;
         color: var(--text-color);
-        display: flex;
-        align-items: center;
-        gap: 10px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
         letter-spacing: -0.5px;
       }
     }
 
     .header-right {
       display: flex;
+      flex-wrap: wrap;
+      min-width: 0;
+      max-width: 100%;
+      justify-content: flex-end;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
+
+      .multi-select-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        min-height: 36px;
+        padding: 6px 10px;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-sm);
+        color: var(--secondary-text);
+        font-size: 13px;
+        white-space: nowrap;
+        &:hover, &.active { background: var(--active-bg); color: var(--primary-color); }
+        &:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+      }
 
       .sort-wrapper {
         position: relative;
@@ -3079,10 +3130,36 @@ const showExportContextMenu = (event) => {
 
   .content-body {
     flex: 1;
+    min-height: 0;
     overflow: hidden;
     position: relative;
     display: flex;
     flex-direction: column;
+
+    .multi-select-bar {
+      flex-shrink: 0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--active-bg);
+      color: var(--text-color);
+      font-size: 14px;
+    }
+    .multi-select-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    .multi-btn {
+      padding: 6px 10px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      background: var(--bg-secondary);
+      color: var(--primary-color);
+      font-size: 13px;
+      &:hover { background: var(--hover-bg); }
+      &.cancel { color: var(--secondary-text); }
+    }
   }
 }
 

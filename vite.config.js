@@ -9,6 +9,8 @@ export default defineConfig({
     __JUSTTODO_BUILD_TAG__: JSON.stringify(process.env.JUSTTODO_BUILD_TAG || new Date().toISOString())
   },
   build: {
+    // 不批量删除旧构建/预加载依赖；正式归档使用一个新的空目录。
+    emptyOutDir: false,
     rollupOptions: {
       output: {
         manualChunks(id) {

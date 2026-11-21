@@ -818,6 +818,9 @@ const isFormChanged = () => {
       mimeType: (a?.mimeType || '').toString()
     })));
   };
+  // 标签也是表单的一部分，仅修改标签后关闭抽屉同样需要保存。
+  const normalizeTags = (arr) => JSON.stringify([...new Set((Array.isArray(arr) ? arr : [])
+    .map(tag => (tag || '').toString().trim()).filter(Boolean))].sort());
   const oldKey = [
     (props.initialData.content || '').toString(),
     (props.initialData.description || '').toString(),
@@ -831,7 +834,8 @@ const isFormChanged = () => {
     normalizeNumberList(props.initialData.repeatWeekDays),
     normalizeNumberList(props.initialData.repeatMonthDays),
     normalizeSubtasks(props.initialData.subtasks),
-    normalizeAttachments(props.initialData.attachments)
+    normalizeAttachments(props.initialData.attachments),
+    normalizeTags(props.initialData.tags)
   ].join('||');
   const newKey = [
     (form.value.content || '').toString(),
@@ -846,7 +850,8 @@ const isFormChanged = () => {
     normalizeNumberList(form.value.repeatWeekDays),
     normalizeNumberList(form.value.repeatMonthDays),
     normalizeSubtasks(form.value.subtasks),
-    normalizeAttachments(form.value.attachments)
+    normalizeAttachments(form.value.attachments),
+    normalizeTags(form.value.tags)
   ].join('||');
   return oldKey !== newKey;
 };

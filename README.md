@@ -147,6 +147,34 @@ npx asar pack dist/ Just-Todo-tags.asar
 - 标签系统目前仅在 **Windows + uTools 8.0.2** 完成构建、安装与数据验证；未在 macOS / Linux 或其他 uTools 版本测试。
 - 上游已停止维护，故未提交 PR 回上游。
 
+### 三栏版（v1.2.0，2026-11-21）
+
+三栏改版以 `feature/tags @ ba8c43f` 为基线，保留标签版功能，不用上游两栏源码覆盖。
+
+- 第一栏：智能导航、标签云、待办全文搜索、设置、主题。
+- 第二栏：全高“我的列表”，独立滚动；项目名搜索与待办搜索相互独立；长名称悬停显示全文；列宽可拖动、方向键微调、双击复位，并记住偏好。
+- 第三栏：原待办与日历内容；标题和工具按钮可以换行，避免增加中间栏后横向溢出。
+- 项目搜索只控制条目可见性，原分类数组不变；搜索时禁用排序，避免把筛选结果保存为完整清单。
+- 修正旧接线问题：分类拖拽的新数组接回并保存；提供可见的多选入口；“管理标签”携带完整任务副本；抽屉的标签-only 变更也参与关闭时保存。
+
+**验证范围**：实际 Vue 源码在真实 Edge 页面中挂载，使用独立内存演示库（40 个项目、6 条待办），20 项回归全部通过，零页面运行时错误/警告。1080×700 时列表滚动区 521px，可完整看到 11 行；800/1080/1440 三档无三栏溢出。此结果不等于已安装到 uTools，也不包含真实邮件发送、系统通知或便签置顶测试。
+
+**构建与身份注意事项**：根与 public/plugin.json 均保留 `name=zyat75sw`、`version=1.2.0`；preload 保持 CommonJS，归档前必须装入其锁定依赖。不要再用普通 ZIP 改扩展名冒充已验证的 UPX 安装包，也不要直接覆盖已安装 asar 或盲跑会恢复历史 installs 的辅助脚本。
+
+本机调试遗留的 package.json 保持原样未覆盖。`vite.config.js` 已关闭 `emptyOutDir` 自动清理，正式归档每次使用一个新的空目录，保留旧 dist 和打包依赖，不批量删除旧文件。下列命令适用于 Git Bash：
+
+```bash
+BUILD_DIR=".workbuddy/build-three-panes-$(date +%Y%m%d-%H%M%S)"
+node node_modules/vite/bin/vite.js build --configLoader runner --outDir "$BUILD_DIR"
+npm ci --prefix "$BUILD_DIR/preload" --omit=dev --ignore-scripts --no-audit --no-fund
+mkdir -p .workbuddy/artifacts
+npm exec --yes --package=@electron/asar@3.4.1 -- asar pack "$BUILD_DIR" .workbuddy/artifacts/Just-Todo-three-panes-v1.2.0.asar
+```
+
+本轮最终构建位于 `.workbuddy/build-three-panes-final`，复用了本轮已校验的预加载依赖，没有继续清理被保护的旧构建目录。
+
+回归入口：本机开发服务下的 `/.workbuddy/qa/three-panes.html`。请保持浏览器页面在前台，避免后台页面的动画帧节流影响等待。演示页只操作内存测试数据，不读取或修改个人 uTools 数据。
+
 ## 🤝 贡献
 
 欢迎提交 Issue 或 Pull Request 来改进这个项目。

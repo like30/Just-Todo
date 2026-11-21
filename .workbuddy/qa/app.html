@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Just Todo 三栏版 · 隔离演示</title>
+  <style>
+    .qa-banner { box-sizing: border-box; height: 32px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; font: 17px/1.4 "Microsoft YaHei", sans-serif; color: #475569; background: #e8eef6; border-bottom: 1px solid #cbd5e1; overflow: hidden; }
+    .qa-banner span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .qa-banner button { flex-shrink: 0; font-size: 17px; color: #1e40af; }
+    #app .app-container { height: calc(100vh - 32px); }
+    html, body { overflow: hidden; }
+  </style>
+</head>
+<body>
+  <div class="qa-banner"><span title="使用本页内存测试数据，未连接 uTools 数据库">隔离演示</span><input id="qa-state" aria-label="演示数据快照" readonly style="min-width:0;flex:1;margin:0 12px;padding:0;border:0;background:transparent;color:inherit;font:inherit;"><button id="reset-demo" type="button">重置演示</button></div>
+  <div id="app"></div>
+  <script type="module" src="./app.mjs"></script>
+</body>
+</html>
